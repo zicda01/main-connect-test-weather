@@ -9,11 +9,14 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
+
+import com.example.main_connect_test_weather.client.WeatherDto.WeatherResponse;
 
 @Component
 public class WeatherClient {
@@ -72,7 +75,7 @@ public class WeatherClient {
         return now.format(DATE_FORMATTER);
     }
 
-    public Mono<String> getCurrentWeather(String nx, String ny) {
+    public Mono<WeatherResponse> getCurrentWeather(String nx, String ny) {
         LocalDateTime now = LocalDateTime.now();
         String baseTime = getFormattedTime(now);
         String baseDate = getFormattedDate(now, baseTime);
@@ -98,9 +101,15 @@ public class WeatherClient {
                         .queryParam("ny", ny)
                         .build())
                 .retrieve()
-                .onStatus(status -> status.isError(), clientResponse ->
-                        Mono.error(new WebClientResponseException("API error", clientResponse.statusCode().value(), null, null, null, null)))
-                .bodyToMono(String.class)
+                .onStatus(HttpStatusCode::isError, clientResponse ->
+                        clientResponse.bodyToMono(String.class) // 에러 응답 본문을 포함시키기 위해 수정
+                                .flatMap(errorBody -> Mono.error(new WebClientResponseException(
+                                        "API error with body: " + errorBody,
+                                        clientResponse.statusCode().value(),
+                                        null, null, null, null
+                                )))
+                )
+                .bodyToMono(WeatherResponse.class)
                 .onErrorResume(WebClientResponseException.class, e -> {
                     System.err.println("API 호출 실패. 상태 코드: " + e.getStatusCode());
                     System.err.println("응답 본문: " + e.getResponseBodyAsString());
