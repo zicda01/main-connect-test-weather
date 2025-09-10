@@ -26,8 +26,9 @@ public class WeatherController {
 
     @GetMapping
     public Mono<String> getCurrentWeather(
-            @RequestParam double lat,
-            @RequestParam double lon) {
+            // default 좌표로 유성구청을 매핑합니다.
+            @RequestParam(defaultValue = "36.3622") double lat,
+            @RequestParam(defaultValue = "127.3568") double lon) {
 
         return weatherService.getCurrentWeather(lat, lon);
     }

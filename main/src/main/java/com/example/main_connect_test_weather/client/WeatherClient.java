@@ -69,19 +69,10 @@ public class WeatherClient {
         return now.format(DATE_FORMATTER);
     }
 
-    // 실제 api 호출 수행시 하드코딩된 더미를 지우고 lat, lon 변수를 직접 전달하는 식으로 메서드가 실행됨.
-    public Mono<String> getWeather() {
+    public Mono<String> getCurrentWeather(String nx, String ny) {
         LocalDateTime now = LocalDateTime.now();
         String baseTime = getFormattedTime(now);
         String baseDate = getFormattedDate(now, baseTime);
-
-        // 유성구청 좌표 (더미 하드코딩)
-        double lat = 36.3622;
-        double lon = 127.3568;
-
-        Converter.Grid grid = Converter.convertToGrid(lat, lon);
-        String nx = String.valueOf(grid.x);
-        String ny = String.valueOf(grid.y);
 
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder

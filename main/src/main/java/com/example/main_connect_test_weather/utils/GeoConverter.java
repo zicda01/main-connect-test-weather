@@ -1,6 +1,9 @@
-package com.example.main_connect_test_weather.client;
+package com.example.main_connect_test_weather.utils;
 
-public class Converter {
+import org.springframework.stereotype.Component;
+
+@Component
+public class GeoConverter {
 
     // 격자 X, Y 좌표
     public static class Grid {
