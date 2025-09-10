@@ -1,5 +1,8 @@
 package com.example.main_connect_test_weather.client;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -74,11 +77,19 @@ public class WeatherClient {
         String baseTime = getFormattedTime(now);
         String baseDate = getFormattedDate(now, baseTime);
 
+        // API 키를 직접 URL 인코딩
+        String encodedApiKey;
+        try {
+            encodedApiKey = URLEncoder.encode(apiKey, StandardCharsets.UTF_8.toString());
+        } catch (UnsupportedEncodingException e) {
+            return Mono.error(new RuntimeException("API Key encoding failed", e));
+        }
+
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/VilageFcstInfoService_2.0/getVilageFcst") // 단기 예보 API 경로로 변경
-                        .queryParam("serviceKey", apiKey)
-                        .queryParam("numOfRows", "1000")
+                        .path("/VilageFcstInfoService_2.0/getVilageFcst")
+                        .queryParam("authKey", encodedApiKey)
+                        .queryParam("numOfRows", "10")
                         .queryParam("pageNo", "1")
                         .queryParam("dataType", "JSON")
                         .queryParam("base_date", baseDate)
@@ -90,8 +101,9 @@ public class WeatherClient {
                 .onStatus(status -> status.isError(), clientResponse ->
                         Mono.error(new WebClientResponseException("API error", clientResponse.statusCode().value(), null, null, null, null)))
                 .bodyToMono(String.class)
-                .onErrorResume(e -> {
-                    System.err.println("API call failed: " + e.getMessage());
+                .onErrorResume(WebClientResponseException.class, e -> {
+                    System.err.println("API 호출 실패. 상태 코드: " + e.getStatusCode());
+                    System.err.println("응답 본문: " + e.getResponseBodyAsString());
                     return Mono.empty();
                 });
     }
