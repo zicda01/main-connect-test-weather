@@ -13,14 +13,10 @@ public class WeatherItem {
     private String baseTime;
     @JsonProperty("category")
     private String category;
-    @JsonProperty("fcstDate")
-    private String fcstDate;
-    @JsonProperty("fcstTime")
-    private String fcstTime;
-    @JsonProperty("fcstValue")
-    private String fcstValue;
     @JsonProperty("nx")
     private int nx;
     @JsonProperty("ny")
     private int ny;
+    @JsonProperty("obsrValue")
+    private String obsrValue;
 }

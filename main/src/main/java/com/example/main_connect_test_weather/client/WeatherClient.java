@@ -25,11 +25,6 @@ public class WeatherClient {
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-    private static final List<String> BASE_TIMES = List.of(
-            "0200", "0500", "0800", "1100",
-            "1400", "1700", "2000", "2300"
-    );
-
     public WeatherClient(
             WebClient.Builder webClientBuilder,
             @Value("${weather.api.key}") String apiKey,
@@ -42,25 +37,10 @@ public class WeatherClient {
     }
 
     private String getFormattedTime(LocalDateTime now) {
-        int nowHour = now.getHour();
-        int nowMinute = now.getMinute();
+        LocalDateTime baseDateTime = now.minusMinutes(10);
 
-        // 현재 시간을 'HHmm' 형식의 정수로 변환
-        int currentTime = nowHour * 100 + nowMinute;
-
-        // BASE_TIMES 리스트를 역순으로 순회하며 가장 최신 발표 시간 찾기
-        for (int i = BASE_TIMES.size() - 1; i >= 0; i--) {
-            int baseTime = Integer.parseInt(BASE_TIMES.get(i));
-            // 발표 시각 10분 이후부터 데이터 호출 가능
-            if (currentTime >= (baseTime + 10)) {
-                return BASE_TIMES.get(i);
-            }
-        }
-
-        // 위 반복문에서 해당하는 발표 시각을 찾지 못한 경우
-        // (예: 현재 시간이 00:00 ~ 02:09)
-        // 전날의 가장 늦은 시간인 "2300"을 반환
-        return "2300";
+        // 계산된 시각을 "HHmm" 형식으로 변환하여 반환
+        return baseDateTime.format(DateTimeFormatter.ofPattern("HH00"));
     }
 
     private String getFormattedDate(LocalDateTime now, String baseTime) {
@@ -69,7 +49,7 @@ public class WeatherClient {
         int nowMinute = now.getMinute();
         int currentTime = nowHour * 100 + nowMinute;
 
-        if ("2300".equals(baseTime) && currentTime < 210) {
+        if ("2300".equals(baseTime) && currentTime < 10) {
             return now.minusDays(1).format(DATE_FORMATTER);
         }
         return now.format(DATE_FORMATTER);
@@ -88,17 +68,18 @@ public class WeatherClient {
             return Mono.error(new RuntimeException("API Key encoding failed", e));
         }
 
+        // 초단기 실활 API 호출
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/VilageFcstInfoService_2.0/getVilageFcst")
-                        .queryParam("authKey", encodedApiKey)
-                        .queryParam("numOfRows", "10")
+                        .path("/VilageFcstInfoService_2.0/getUltraSrtNcst")
                         .queryParam("pageNo", "1")
+                        .queryParam("numOfRows", "1000")
                         .queryParam("dataType", "JSON")
                         .queryParam("base_date", baseDate)
                         .queryParam("base_time", baseTime)
                         .queryParam("nx", nx)
                         .queryParam("ny", ny)
+                        .queryParam("authKey", encodedApiKey)
                         .build())
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, clientResponse ->

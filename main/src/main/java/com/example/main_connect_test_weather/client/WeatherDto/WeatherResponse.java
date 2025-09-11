@@ -8,11 +8,11 @@ import lombok.Setter;
 @Setter
 public class WeatherResponse {
     @JsonProperty("response")
-    private ResponseData response;
+    private Response response;
 
     @Getter
     @Setter
-    public static class ResponseData {
+    public static class Response {
         private Header header;
         private WeatherBody body;
     }
@@ -23,4 +23,9 @@ public class WeatherResponse {
         private String resultCode;
         private String resultMsg;
     }
+
+    public Response getResponse() {
+        return response;
+    }
+
 }

@@ -1,7 +1,7 @@
 package com.example.main_connect_test_weather.service;
 
 import com.example.main_connect_test_weather.client.WeatherClient;
-import com.example.main_connect_test_weather.client.WeatherDto.WeatherForecastDto;
+import com.example.main_connect_test_weather.client.WeatherDto.WeatherCurrentDto;
 import com.example.main_connect_test_weather.client.WeatherDto.WeatherItem;
 import com.example.main_connect_test_weather.client.WeatherDto.WeatherResponse;
 import com.example.main_connect_test_weather.utils.GeoConverter;
@@ -36,7 +36,7 @@ public class WeatherService {
      * @param lon 경도
      * @return API 응답을 담고 있는 Mono<String>
      */
-    public Mono<WeatherForecastDto> getCurrentWeather(double lat, double lon) {
+    public Mono<WeatherCurrentDto> getCurrentWeather(double lat, double lon) {
         GeoConverter.Grid grid = geoConverter.convertToGrid(lat, lon);
         String nx = String.valueOf(grid.x);
         String ny = String.valueOf(grid.y);
@@ -45,48 +45,61 @@ public class WeatherService {
                 .map(this::processWeatherResponse);
     }
 
-    private WeatherForecastDto processWeatherResponse(WeatherResponse weatherResponse) {
-        WeatherForecastDto weatherForecastDto = new WeatherForecastDto();
+
+    private WeatherCurrentDto processWeatherResponse(WeatherResponse weatherResponse) {
+        WeatherCurrentDto weatherCurrentDto = new WeatherCurrentDto();
 
         List<WeatherItem> items = weatherResponse.getResponse().getBody().getItems().getItem();
 
         // 날씨 데이터를 key-value 형태로 가공
         var weatherDataMap = items.stream()
-                .collect(Collectors.toMap(WeatherItem::getCategory, WeatherItem::getFcstValue));
+                .collect(Collectors.toMap(WeatherItem::getCategory, WeatherItem::getObsrValue));
 
         // DTO 필드에 데이터 매핑
-        weatherForecastDto.setFcstDate(items.get(0).getFcstDate());
-        weatherForecastDto.setFcstTime(items.get(0).getFcstTime());
-        weatherForecastDto.setTemperature(Double.parseDouble(weatherDataMap.getOrDefault("TMP", "0.0")));
-        weatherForecastDto.setWindSpeed(Double.parseDouble(weatherDataMap.getOrDefault("WSD", "0.0")));
-        weatherForecastDto.setSkyStatus(convertSkyStatus(weatherDataMap.getOrDefault("SKY", "0")));
-        weatherForecastDto.setPrecipitationType(convertPrecipitationType(weatherDataMap.getOrDefault("PTY", "0")));
-        weatherForecastDto.setPrecipitationProbability(Integer.parseInt(weatherDataMap.getOrDefault("POP", "0")));
+        if (!items.isEmpty()) {
+            weatherCurrentDto.setBaseDate(items.get(0).getBaseDate());
+            weatherCurrentDto.setBaseTime(items.get(0).getBaseTime());
+        }
+
+        // 관측 데이터를 매핑하고, 필요에 따라 타입 변환
+        weatherCurrentDto.setTemperature(Double.parseDouble(weatherDataMap.getOrDefault("T1H", "0.0")));
+        weatherCurrentDto.setOneHourPrecipitation(Double.parseDouble(weatherDataMap.getOrDefault("RN1", "0.0")));
+        weatherCurrentDto.setHumidity(Double.parseDouble(weatherDataMap.getOrDefault("REH", "0.0")));
+        weatherCurrentDto.setWindSpeed(Double.parseDouble(weatherDataMap.getOrDefault("WSD", "0.0")));
+        weatherCurrentDto.setWindDirection(Double.parseDouble(weatherDataMap.getOrDefault("VEC", "0.0")));
+        weatherCurrentDto.setEastWestWind(Double.parseDouble(weatherDataMap.getOrDefault("UUU", "0.0")));
+        weatherCurrentDto.setSouthNorthWind(Double.parseDouble(weatherDataMap.getOrDefault("VVV", "0.0")));
+
+        // 강수 형태(PTY)는 코드값을 문자열로 변환
+        weatherCurrentDto.setPrecipitationType(convertPrecipitationType(weatherDataMap.getOrDefault("PTY", "0")));
 
         // 디버그 코드 추가
-        System.out.println("가공된 최종 데이터: " + weatherForecastDto.toString());
+        System.out.println("가공된 최종 데이터: " + weatherCurrentDto.toString());
 
-        return weatherForecastDto;
+        return weatherCurrentDto;
     }
 
-    private String convertPrecipitationType(String code) {
-        return switch (code) {
-            case "0" -> "강수 없음";
-            case "1" -> "비";
-            case "2" -> "비/눈";
-            case "3" -> "눈";
-            case "4" -> "소나기";
-            default -> "알 수 없음";
-        };
-    }
+    public String convertPrecipitationType(String ptyCode) {
+        if (ptyCode == null || ptyCode.equals("-1") || ptyCode.equals("0")) {
+            return "없음";
+        }
 
-    private String convertSkyStatus(String code) {
-        return switch (code) {
-            case "1" -> "맑음";
-            case "3" -> "구름 많음";
-            case "4" -> "흐림";
-            default -> "알 수 없음";
-        };
+        switch (ptyCode) {
+            case "1":
+                return "비";
+            case "2":
+                return "비/눈";
+            case "3":
+                return "눈";
+            case "5":
+                return "빗방울";
+            case "6":
+                return "빗방울/눈날림";
+            case "7":
+                return "눈날림";
+            default:
+                return "확인불가";
+        }
     }
 
 }
