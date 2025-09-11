@@ -24,8 +24,4 @@ public class WeatherResponse {
         private String resultMsg;
     }
 
-    public Response getResponse() {
-        return response;
-    }
-
 }
